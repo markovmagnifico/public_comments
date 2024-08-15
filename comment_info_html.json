@@ -2,19 +2,19 @@
   "comment_id": "PHMSA-2011-0023-0407",
   "tracking_number": "1k0-8qmr-ukdy",
   "comment_details": {
-    "Document Subtype": "Comment(s)",
-    "Received Date": "Jul 6, 2016"
+    "document_subtype": "Comment(s)",
+    "received_date": "Jul 6, 2016"
   },
   "submitter_info": {
-    "Submitter Name": "Donald Santa",
-    "Mailing Address": "20 F Street NW,",
-    "Mailing Address 2": "Suite 450",
-    "City": "Washington",
-    "Country": "United States",
-    "State or Province": "DC",
-    "ZIP/Postal Code": "20001",
-    "Organization Name": null,
-    "Submitter's Representative": null
+    "submitter_name": "Donald Santa",
+    "mailing_address": "20 F Street NW,",
+    "mailing_address_2": "Suite 450",
+    "city": "Washington",
+    "country": "United States",
+    "state_or_province": "DC",
+    "zip_postal_code": "20001",
+    "organization_name": null,
+    "submitter_representative": null
   },
   "comment_content": "Comments of Interstate Natural Gas Association of America",
   "attachments": [

@@ -1,65 +1,67 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 import json
 import time
-from colorama import init, Fore, Style
+from typing import List, Dict, Optional
+from dataclasses import dataclass, asdict
 
-init(autoreset=True)
-
-
-def print_info(message):
-    print(f"{Fore.CYAN}{message}{Style.RESET_ALL}")
-
-
-def print_success(message):
-    print(f"{Fore.GREEN}{message}{Style.RESET_ALL}")
+from utils import (
+    print_info, print_success, print_warning, print_error,
+    setup_driver, wait_for_element, extract_text, extract_info
+)
 
 
-def print_warning(message):
-    print(f"{Fore.YELLOW}{message}{Style.RESET_ALL}")
+@dataclass
+class CommentDetails:
+    document_subtype: str
+    received_date: str
 
 
-def setup_driver():
-    print_info("Setting up Chrome WebDriver...")
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    service = Service()
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-    return driver
+@dataclass
+class SubmitterInfo:
+    submitter_name: str
+    mailing_address: str
+    mailing_address_2: Optional[str]
+    city: str
+    country: str
+    state_or_province: str
+    zip_postal_code: str
+    organization_name: Optional[str]
+    submitter_representative: Optional[str]
 
 
-def wait_for_element(driver, by, value, timeout=20):
-    return WebDriverWait(driver, timeout).until(
-        EC.presence_of_element_located((by, value))
-    )
+@dataclass
+class Attachment:
+    title: str
+    download_links: List[str]
 
 
-def extract_text(soup, selector):
-    element = soup.select_one(selector)
-    return element.text.strip() if element else None
+@dataclass
+class CommentInfo:
+    comment_id: str
+    tracking_number: str
+    comment_details: CommentDetails
+    submitter_info: SubmitterInfo
+    comment_content: str
+    attachments: List[Attachment]
 
 
-def extract_download_links(attachment_html):
+def extract_download_links(attachment_html: str) -> List[str]:
     soup = BeautifulSoup(attachment_html, 'html.parser')
     links = soup.select('a[href]')
     return [link['href'] for link in links if 'download' in link.get('class', []) or link.find('span', string='Download')]
 
 
-def scrape_comment_page(url):
-    driver = setup_driver()
-    print_info(f"Fetching page: {url}")
-    driver.get(url)
+def scrape_comment_page(url: str) -> CommentInfo:
+    with setup_driver() as driver:
+        print_info(f"Fetching page: {url}")
+        driver.get(url)
 
-    wait_for_element(driver, By.ID, "mainContent")
-    print_warning("Waiting for page to load completely...")
-    time.sleep(5)
+        wait_for_element(driver, By.ID, "mainContent")
+        print_warning("Waiting for page to load completely...")
+        time.sleep(5)
 
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     comment_id = url.split('/')[-1]
 
@@ -69,24 +71,25 @@ def scrape_comment_page(url):
 
     details_soup = BeautifulSoup(
         str(soup.select_one('#tab-document-details')), 'html.parser')
-    comment_details = {
-        'Document Subtype': extract_text(details_soup, 'li:-soup-contains("Document Subtype") p.mb-0'),
-        'Received Date': extract_text(details_soup, 'li:-soup-contains("Received Date") p.mb-0')
-    }
+    comment_details = CommentDetails(
+        document_subtype=extract_info(details_soup, "Document Subtype"),
+        received_date=extract_info(details_soup, "Received Date")
+    )
 
     submitter_soup = BeautifulSoup(
         str(soup.select_one('#tab-submitter-info')), 'html.parser')
-    submitter_info = {
-        'Submitter Name': extract_text(submitter_soup, 'li:-soup-contains("Submitter Name") p.mb-0'),
-        'Mailing Address': extract_text(submitter_soup, 'li:-soup-contains("Mailing Address") p.mb-0'),
-        'Mailing Address 2': extract_text(submitter_soup, 'li:-soup-contains("Mailing Address 2") p.mb-0'),
-        'City': extract_text(submitter_soup, 'li:-soup-contains("City") p.mb-0'),
-        'Country': extract_text(submitter_soup, 'li:-soup-contains("Country") p.mb-0'),
-        'State or Province': extract_text(submitter_soup, 'li:-soup-contains("State or Province") p.mb-0'),
-        'ZIP/Postal Code': extract_text(submitter_soup, 'li:-soup-contains("ZIP/Postal Code") p.mb-0'),
-        'Organization Name': extract_text(submitter_soup, 'li:-soup-contains("Organization Name") p.mb-0'),
-        "Submitter's Representative": extract_text(submitter_soup, 'li:-soup-contains("Submitter\'s Representative") p.mb-0')
-    }
+    submitter_info = SubmitterInfo(
+        submitter_name=extract_info(submitter_soup, "Submitter Name"),
+        mailing_address=extract_info(submitter_soup, "Mailing Address"),
+        mailing_address_2=extract_info(submitter_soup, "Mailing Address 2"),
+        city=extract_info(submitter_soup, "City"),
+        country=extract_info(submitter_soup, "Country"),
+        state_or_province=extract_info(submitter_soup, "State or Province"),
+        zip_postal_code=extract_info(submitter_soup, "ZIP/Postal Code"),
+        organization_name=extract_info(submitter_soup, "Organization Name"),
+        submitter_representative=extract_info(
+            submitter_soup, "Submitter's Representative")
+    )
 
     comment_content = extract_text(soup, 'div.px-2')
 
@@ -95,34 +98,30 @@ def scrape_comment_page(url):
         title = extract_text(attachment_html, 'h3.h5')
         if title:
             download_links = extract_download_links(str(attachment_html))
-            attachments.append({
-                'title': title,
-                'download_links': download_links
-            })
+            attachments.append(Attachment(
+                title=title, download_links=download_links))
 
-    comment_info = {
-        'comment_id': comment_id,
-        'tracking_number': tracking_number,
-        'comment_details': comment_details,
-        'submitter_info': submitter_info,
-        'comment_content': comment_content,
-        'attachments': attachments
-    }
-
-    driver.quit()
-    return comment_info
+    return CommentInfo(
+        comment_id=comment_id,
+        tracking_number=tracking_number,
+        comment_details=comment_details,
+        submitter_info=submitter_info,
+        comment_content=comment_content,
+        attachments=attachments
+    )
 
 
-def main():
+def main() -> None:
     url = "https://www.regulations.gov/comment/PHMSA-2011-0023-0407"
     print_info("Starting comment scraping process...")
-    comment_info = scrape_comment_page(url)
-
-    with open('comment_info_html.json', 'w') as f:
-        json.dump(comment_info, f, indent=2)
-
-    print_success(
-        "Comment information HTML has been saved to comment_info_html.json")
+    try:
+        comment_info = scrape_comment_page(url)
+        with open('comment_info_html.json', 'w') as f:
+            json.dump(asdict(comment_info), f, indent=2)
+        print_success(
+            "Comment information HTML has been saved to comment_info_html.json")
+    except Exception as e:
+        print_error(f"An error occurred: {str(e)}")
 
 
 if __name__ == "__main__":
