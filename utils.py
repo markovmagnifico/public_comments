@@ -5,9 +5,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 from colorama import init, Fore, Style
-from typing import List, Dict, Optional
+from typing import List, Optional
+import re
 
 init(autoreset=True)
 
@@ -53,3 +55,22 @@ def extract_text(soup: BeautifulSoup, selector: str) -> Optional[str]:
 
 def extract_info(soup: BeautifulSoup, field: str) -> Optional[str]:
     return extract_text(soup, f'li:-soup-contains("{field}") p.mb-0')
+
+
+def extract_download_links(attachment_html: str) -> List[str]:
+    soup = BeautifulSoup(attachment_html, 'html.parser')
+    links = soup.select('a[href]')
+    return [link['href'] for link in links if 'download' in link.get('class', []) or link.find('span', string='Download')]
+
+
+def get_total_comments(driver: webdriver.Chrome) -> int:
+    try:
+        results_element = wait_for_element(
+            driver, By.CSS_SELECTOR, ".pagination-container p")
+        results_text = results_element.text
+        match = re.search(r'of (\d+) results', results_text)
+        return int(match.group(1)) if match else 0
+    except TimeoutException:
+        print_warning(
+            "Couldn't find the results count. The page might not have loaded properly.")
+        return 0

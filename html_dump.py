@@ -29,7 +29,7 @@ def save_to_file(content: str, filename: str) -> None:
 
 def main() -> None:
     url = "https://www.regulations.gov/document/PHMSA-2011-0023-0118/comment"
-    output_file = "result.html"
+    output_file = "output/result.html"
 
     with setup_driver() as driver:
         content = scrape_page(url, driver)

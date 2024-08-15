@@ -3,3 +3,4 @@
 .venv/*
 *.pyc
 full_comments_data.json
+output/*

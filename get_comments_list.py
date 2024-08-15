@@ -1,31 +1,17 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import json
-import re
 import time
-from typing import List, Dict, Optional
+import os
+from typing import List, Dict
 
 from utils import (
     print_info, print_success, print_warning, print_error,
-    setup_driver, wait_for_element, extract_text, extract_info
+    setup_driver, wait_for_element, extract_text, get_total_comments
 )
-
-
-def get_total_comments(driver: webdriver.Chrome) -> int:
-    try:
-        results_element = wait_for_element(
-            driver, By.CSS_SELECTOR, ".pagination-container p")
-        results_text = results_element.text
-        match = re.search(r'of (\d+) results', results_text)
-        return int(match.group(1)) if match else 0
-    except TimeoutException:
-        print_warning(
-            "Couldn't find the results count. The page might not have loaded properly.")
-        return 0
 
 
 def scrape_comment_info(comment_element: WebElement) -> Dict[str, str]:
@@ -33,11 +19,11 @@ def scrape_comment_info(comment_element: WebElement) -> Dict[str, str]:
     soup = BeautifulSoup(html_content, 'html.parser')
 
     return {
+        "id": extract_text(soup, "li:-soup-contains('ID')").replace("ID", "").strip(),
         "title": extract_text(soup, "h3.card-title a"),
         "url": soup.select_one("h3.card-title a")['href'],
         "agency": extract_text(soup, "li:-soup-contains('Agency')").replace("Agency", "").strip(),
         "posted_date": extract_text(soup, "li:-soup-contains('Posted')").replace("Posted", "").strip(),
-        "id": extract_text(soup, "li:-soup-contains('ID')").replace("ID", "").strip(),
     }
 
 
@@ -84,11 +70,13 @@ def main() -> None:
     try:
         comments = scrape_comments(url)
 
-        with open('comments.json', 'w') as f:
+        os.makedirs('output', exist_ok=True)
+        output_file = 'output/comments_list.json'
+        with open(output_file, 'w') as f:
             json.dump(comments, f, indent=2)
 
         print_success(
-            f"Scraped {len(comments)} comments. Data saved to comments.json")
+            f"Scraped {len(comments)} comments. Data saved to {output_file}")
     except Exception as e:
         print_error(f"An error occurred: {str(e)}")
 
