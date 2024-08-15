@@ -6,13 +6,7 @@ from utils import print_info, print_success, print_warning
 import time
 from typing import Optional
 
-
-def setup_driver() -> webdriver.Chrome:
-    print_warning("Setting up Chrome WebDriver...")
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=chrome_options)
+from utils import setup_driver
 
 
 def scrape_page(url: str, driver: webdriver.Chrome) -> Optional[str]:

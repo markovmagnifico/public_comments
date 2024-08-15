@@ -1,3 +1,4 @@
+"""Script to pull a single comment details from an NPRM on regulations.gov"""
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 import json
